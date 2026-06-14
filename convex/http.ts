@@ -51,9 +51,7 @@ http.route({
             await ctx.runMutation(api.users.createUser, {
                 clerkId: user.id,
                 email: user.email_addresses?.[0]?.email_address ?? "",
-                name:
-                    `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim(),
-                imageUrl: user.image_url ?? "",
+                name: `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim(),
             });
         }
 

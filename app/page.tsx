@@ -64,14 +64,14 @@ export default async function Home() {
           ))}
         </div>
 
-        {/* <div className='text-center'>
-					<Link href='/pro'>
-						<Button size='lg' className='group hover:bg-purple-600 transition-colors duration-300'>
-							Explore Pro Plans
-							<ArrowRight className='ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform' />
-						</Button>
-					</Link>
-				</div> */}
+        <div className='text-center'>
+          <Link href='/pro'>
+            <Button size='lg' className='group hover:bg-purple-600 transition-colors duration-300'>
+              Explore Pro Plans
+              <ArrowRight className='ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform' />
+            </Button>
+          </Link>
+        </div>
       </main>
     </div>
   );

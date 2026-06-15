@@ -2,6 +2,7 @@ import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { Webhook } from "svix";
 import { api } from "./_generated/api";
+import stripe from "../lib/stripe";
 
 const http = httpRouter();
 
@@ -46,12 +47,23 @@ http.route({
         }
 
         if (event.type === "user.created") {
-            const user = event.data;
+
+            const { id, email_addresses, first_name, last_name } = evt.data;
+            const email = email_addresses[0]?.email_address;
+            const name = `${first_name || ""} ${last_name || ""}`.trim();
+
+            const customer = await stripe.customers.create({
+                email,
+                name,
+                metadata: { clerkId: id },
+            });
+
 
             await ctx.runMutation(api.users.createUser, {
-                clerkId: user.id,
-                email: user.email_addresses?.[0]?.email_address ?? "",
-                name: `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim(),
+                email,
+                name,
+                clerkId: id,
+                stripeCustomerId: customer.id,
             });
         }
 

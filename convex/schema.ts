@@ -29,6 +29,15 @@ export default defineSchema({
         purchaseDate: v.number(), // unix timestamp
         stripePurchaseId: v.string(),
     }).index("by_userId_and_courseId", ["userId", "courseId"]),
-    //Subscription table
 
+    //Subscription table
+    subscriptions: defineTable({
+        userId: v.id("users"),
+        planType: v.union(v.literal("month"), v.literal("year")),
+        currentPeriodStart: v.number(),
+        currentPeriodEnd: v.number(),
+        stripeSubscriptionId: v.string(),
+        status: v.string(),
+        cancelAtPeriodEnd: v.boolean(),
+    }).index("by_stripeSubscriptionId", ["stripeSubscriptionId"]),
 })

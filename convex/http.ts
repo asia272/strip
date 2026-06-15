@@ -48,7 +48,7 @@ http.route({
 
         if (event.type === "user.created") {
 
-            const { id, email_addresses, first_name, last_name } = evt.data;
+            const { id, email_addresses, first_name, last_name } = event.data;
             const email = email_addresses[0]?.email_address;
             const name = `${first_name || ""} ${last_name || ""}`.trim();
 

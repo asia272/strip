@@ -7,7 +7,7 @@ export default defineSchema({
         email: v.string(),
         name: v.string(),
         clerkId: v.string(),
-        stripeCustomerId: v.string(),
+        stripeCustomerId: v.optional(v.string()),
         currentSubscriptionId: v.optional(v.id("subscriptions")),
     })
         .index("by_clerkId", ["clerkId"])

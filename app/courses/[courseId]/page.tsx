@@ -11,7 +11,7 @@ import Image from "next/image";
 import { use } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, FileText, FileTextIcon, Lock, PlayCircle } from "lucide-react";
-// import PurchaseButton from "@/components/PurchaseButton";
+import PurchaseButton from "@/components/PurchaseButton";
 
 const CourseDetailPage = ({
     params,
@@ -93,8 +93,8 @@ const CourseDetailPage = ({
                                     Enroll in this course to access all premium content.
                                 </p>
                                 <p className='text-2xl font-bold mb-4'>${courseData.price.toFixed(2)}</p>
-                                {/* <PurchaseButton courseId={params.courseId} /> */}
-                                Todo
+                                <PurchaseButton courseId={courseId} />
+
                             </div>
                         </div>
                     )}

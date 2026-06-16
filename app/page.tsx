@@ -9,6 +9,7 @@ import { Show, SignInButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight } from "lucide-react";
+import PurchaseButton from "@/components/PurchaseButton";
 
 
 export default async function Home() {
@@ -51,7 +52,7 @@ export default async function Home() {
                 </Badge>
 
                 <Show when={'signed-in'}>
-                  Enrole
+                  <PurchaseButton courseId={course._id} />
                 </Show>
 
                 <Show when={'signed-out'}>

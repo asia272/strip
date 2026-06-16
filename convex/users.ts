@@ -56,8 +56,13 @@ export const getUserAccess = query({
     },
     handler: async (ctx, args) => {
         //1 check is user authunticated
+
         const identity = await ctx.auth.getUserIdentity();
-        if (!identity) throw new Error("Unathorized");
+
+
+        if (!identity) {
+            throw new Error("Unauthorized");
+        }
 
         //2 check user in db
         const user = await ctx.db.get(args.userId);

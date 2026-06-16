@@ -6,5 +6,6 @@ export default {
             domain: "https://clean-kangaroo-58.clerk.accounts.dev",
             applicationID: "convex",
         },
-    ]
+    ],
 } satisfies AuthConfig;
+;

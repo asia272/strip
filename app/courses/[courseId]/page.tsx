@@ -8,22 +8,29 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
+import { use } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, FileText, FileTextIcon, Lock, PlayCircle } from "lucide-react";
 // import PurchaseButton from "@/components/PurchaseButton";
 
-const CourseDetailPage = ({ params }: { params: { courseId: Id<"courses"> } }) => {
+const CourseDetailPage = ({
+    params,
+}: {
+    params: Promise<{ courseId: Id<"courses"> }>;
+}) => {
+    const { courseId } = use(params);
+
     const { user, isLoaded: isUserLoaded } = useUser();
 
     const userData = useQuery(api.users.getUserByClerkId, { clerkId: user?.id ?? "" });
-    const courseData = useQuery(api.courses.getCourseById, { courseId: params.courseId });
+    const courseData = useQuery(api.courses.getCourseById, { courseId: courseId });
 
     const userAccess = useQuery(
         api.users.getUserAccess,
         userData
             ? {
                 userId: userData._id,
-                courseId: params.courseId,
+                courseId: courseId,
             }
             : "skip"
     ) || { hasAccess: false };

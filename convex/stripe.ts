@@ -3,6 +3,7 @@ import { action } from "./_generated/server";
 import { ConvexError } from "convex/values";
 import stripe from "../lib/stripe";
 import { api } from "./_generated/api";
+import { checkoutRateLimit } from "../lib/ratelimit";
 
 export const createCheckoutSession = action({
     args: {
@@ -24,7 +25,7 @@ export const createCheckoutSession = action({
 
         if (!user) throw new ConvexError("User not found");
 
-        // 3. Get course (actions CAN use runQuery)
+        // 3. Get course 
         const course = await ctx.runQuery(
             api.courses.getCourseById,
             {
@@ -34,7 +35,29 @@ export const createCheckoutSession = action({
 
         if (!course) throw new ConvexError("Course not found");
 
-        // 4. Stripe session
+        //4 Rate limit check   that prevent user to create too many request
+        // const { success } = await checkoutRateLimit.limit(
+        //     `checkout:${user._id}`
+        // );
+
+
+        const { success, limit, remaining, reset } =
+            await checkoutRateLimit.limit(
+                `checkout:${identity.subject}`
+            );
+
+        console.log("Rate limit", {
+
+            success,
+            limit,
+            remaining,
+            reset,
+
+        });
+        if (!success) {
+            throw new Error(`Rate limit exceeded.`);
+        }
+        // 5. Stripe session
         const session = await stripe.checkout.sessions.create({
             customer: user.stripeCustomerId,
             payment_method_types: ["card"],

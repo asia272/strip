@@ -26,7 +26,7 @@ const PurchaseButton = ({ courseId }: { courseId: Id<"courses"> }) => {
     ) || { hasAccess: false };
 
     const handlePurchase = async () => {
-        if (!user) return console.log("user not fund");
+        if (!user) return toast.error("Please log in to purchase", { id: "login-error" });
         setIsLoading(true);
         try {
             const { checkoutUrl } = await createCheckoutSession({ courseId });//that redirect to strip checkout

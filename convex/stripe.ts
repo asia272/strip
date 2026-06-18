@@ -36,24 +36,10 @@ export const createCheckoutSession = action({
         if (!course) throw new ConvexError("Course not found");
 
         //4 Rate limit check   that prevent user to create too many request
-        // const { success } = await checkoutRateLimit.limit(
-        //     `checkout:${user._id}`
-        // );
+        const { success } = await checkoutRateLimit.limit(
+            `checkout:${user._id}`
+        );
 
-
-        const { success, limit, remaining, reset } =
-            await checkoutRateLimit.limit(
-                `checkout:${identity.subject}`
-            );
-
-        console.log("Rate limit", {
-
-            success,
-            limit,
-            remaining,
-            reset,
-
-        });
         if (!success) {
             throw new Error(`Rate limit exceeded.`);
         }
@@ -78,7 +64,10 @@ export const createCheckoutSession = action({
                     quantity: 1,
                 },
             ],
-
+            metadata: {
+                courseId: args.courseId,
+                userId: user._id,
+            },
             success_url: `${process.env.NEXT_PUBLIC_APP_URL}/courses/${args.courseId}/success?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/courses`,
         });

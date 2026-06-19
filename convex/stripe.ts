@@ -75,3 +75,34 @@ export const createCheckoutSession = action({
         return { checkoutUrl: session.url };
     },
 });
+export const createProPlanCheckoutSession = action({
+    args: {},
+    handler: async (ctx, args) => {
+
+
+        // 1. Auth
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new ConvexError("Unauthorized");
+
+        // 2. Get user 
+        const user = await ctx.runQuery(
+            api.users.getUserByClerkId,
+            {
+                clerkId: identity.subject,
+            }
+        );
+        if (!user) throw new ConvexError("User not found!")
+
+        //3 Rate limit check   that prevent user to create too many request
+        const { success } = await checkoutRateLimit.limit(
+            `checkout:${user._id}`
+        );
+
+        if (!success) {
+            throw new Error(`Rate limit exceeded.`);
+        }
+
+
+
+    }
+});

@@ -48,8 +48,6 @@ export const createCheckoutSession = action({
             customer: user.stripeCustomerId,
             payment_method_types: ["card"],
             mode: "payment",
-
-
             line_items: [
                 {
                     price_data: {

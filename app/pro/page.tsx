@@ -1,37 +1,55 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
-import { PRO_PLANS } from "@/constants";
-import { api } from "@/convex/_generated/api";
 import { useUser } from "@clerk/nextjs";
-import { useQuery } from "convex/react";
+import { useAction, useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { PRO_PLANS } from "@/constants";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Loader2Icon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import toast from "react-hot-toast";
 
-const Page = () => {
-    const { user, isLoaded } = useUser();
+const ProPage = () => {
+    const [loadingPlan, setLoadingPlan] = useState("");
+    const { user, isLoaded: isUserLoaded } = useUser();
 
-    const [loadingPlan, setLoadingPlan] = useState();
-
-
-    const convexUser = useQuery(
-        api.users.getUserByClerkId,
-        user?.id ? { clerkId: user.id } : "skip"
-    );
-
+    const userData = useQuery(api.users.getUserByClerkId, user ? { clerkId: user?.id } : "skip");
     const userSubscription = useQuery(
         api.subscriptions.getUserSubscription,
-        convexUser?._id ? { userId: convexUser._id } : "skip"
+        userData ? { userId: userData?._id } : "skip"
     );
 
     const isYearlySubscriptionActive = userSubscription?.status === "active" && userSubscription.planType === "year";
+    const createProPlanCheckoutSession = useAction(api.stripe.createProPlanCheckoutSession);
 
-    const handlePlanSelection = (planId: string) => {
-        console.log("Current plan Id:", planId)
-    }
+    const handlePlanSelection = async (planId: "month" | "year") => {
+        if (!user) {
+            toast.error("Please log in to select a plan.", {
+                id: "login-error",
+                position: "top-center",
+                duration: 3000,
+            });
+            return;
+        }
 
-    if (!isLoaded) return <div>Loading...</div>;
+        setLoadingPlan(planId);
+        try {
+            const result = await createProPlanCheckoutSession({ planType: planId });
+            if (result.checkoutUrl) {
+                window.location.href = result.checkoutUrl;
+            }
+        } catch (error: any) {
+            if (error.message.includes("Rate limit exceeded")) {
+                toast.error("You've tried too many times. Please try again later.");
+            } else {
+                toast.error("There was an error initiating your purchase. Please try again.");
+            }
+            console.log(error);
+        } finally {
+            setLoadingPlan("");
+        }
+    };
 
     return (
         <div className='container mx-auto px-4 py-16 max-w-6xl h-screen'>
@@ -40,7 +58,7 @@ const Page = () => {
                 Unlock premium features and accelerate your learning
             </p>
 
-            {isLoaded && userSubscription?.status === "active" && (
+            {isUserLoaded && userSubscription?.status === "active" && (
                 <div className='bg-blue-50 border-l-4 border-blue-500 p-4 mb-8 rounded-md'>
                     <p className='text-blue-700'>
                         You have an active <span className='font-semibold'>{userSubscription.planType}</span>{" "}
@@ -87,8 +105,8 @@ const Page = () => {
                         <CardFooter className='mt-auto'>
                             <Button
                                 className={`w-full py-6 text-lg ${plan.highlighted
-                                    ? "bg-purple-600 hover:bg-purple-700 text-white"
-                                    : "bg-white text-purple-600 border-2 border-purple-600 hover:bg-purple-50"
+                                        ? "bg-purple-600 hover:bg-purple-700 text-white"
+                                        : "bg-white text-purple-600 border-2 border-purple-600 hover:bg-purple-50"
                                     }`}
                                 onClick={() => handlePlanSelection(plan.id as "month" | "year")}
                                 disabled={
@@ -101,11 +119,11 @@ const Page = () => {
                                         <Loader2Icon className='mr-2 size-4 animate-spin' />
                                         Processing...
                                     </>
-                                ) : isLoaded &&
+                                ) : isUserLoaded &&
                                     userSubscription?.status === "active" &&
                                     userSubscription.planType === plan.id ? (
                                     "Current Plan"
-                                ) : isLoaded && plan.id === "month" && isYearlySubscriptionActive ? (
+                                ) : isUserLoaded && plan.id === "month" && isYearlySubscriptionActive ? (
                                     "Yearly Plan Active"
                                 ) : (
                                     plan.ctaText
@@ -119,4 +137,4 @@ const Page = () => {
     );
 };
 
-export default Page;
+export default ProPage;

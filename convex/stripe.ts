@@ -74,7 +74,9 @@ export const createCheckoutSession = action({
     },
 });
 export const createProPlanCheckoutSession = action({
-    args: {},
+    args: {
+        args: { planId: v.union(v.literal("month"), v.literal("year")) },
+    },
     handler: async (ctx, args) => {
 
 
@@ -98,6 +100,17 @@ export const createProPlanCheckoutSession = action({
 
         if (!success) {
             throw new Error(`Rate limit exceeded.`);
+        }
+        //4
+        let priceId;
+        if (args.planId === "month") {
+            priceId = process.env.STRIPE_MONTHLY_PRICE_ID;
+        } else if (args.planId === "year") {
+            priceId = process.env.STRIPE_YEARLY_PRICE_ID;
+        }
+
+        if (!priceId) {
+            throw new ConvexError("PriceId not provided");
         }
 
 

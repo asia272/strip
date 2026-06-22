@@ -77,9 +77,12 @@ export const getUserAccess = query({
 
         }
         //4 check for purchas
-        const purchase = await ctx.db.query("purchases") // get purchas by userId and courseId
-            .withIndex("by_userId_and_courseId", (q) => q.eq("userId", args.userId).eq("courseId", args.courseId))
-            .unique();
+        const purchase = await ctx.db
+            .query("purchases")
+            .withIndex("by_userId_and_courseId", (q) =>
+                q.eq("userId", args.userId).eq("courseId", args.courseId)
+            )
+            .first();
 
         if (purchase) {
             return { hasAccess: true, accessType: "course" };

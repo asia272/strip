@@ -28,6 +28,7 @@ export async function POST(req: Request) {
             sig,
             process.env.STRIPE_WEBHOOK_SECRET!
         );
+        console.log("Webhook event:", event.type);
     } catch (err) {
         console.log("Webhook signature error:", err);
         return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
@@ -37,20 +38,16 @@ export async function POST(req: Request) {
 
     switch (event.type) {
 
-        case "checkout.session.completed": {
+        case "checkout.session.completed":
             await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
-
-
             break;
-        }
-        case "payment_intent.succeeded": {
-            const paymentIntent = event.data.object as Stripe.PaymentIntent;
-            console.log("PaymentIntent success:", paymentIntent.id);
+        case "customer.subscription.created":
+        case "customer.subscription.updated":
+            await handleSubscriptionUpsert(event.data.object as Stripe.Subscription, event.type);
             break;
-        }
-
         default:
-            console.log("Unhandled event:", event.type);
+            console.log(`Unhandled event type: ${event.type}`);
+            break;
     }
 
     return NextResponse.json({ received: true });
@@ -87,5 +84,75 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         console.log(" Purchase saved in Convex");
     } catch (err) {
         console.error(" Convex insert failed:", err);
+    }
+}
+async function handleSubscriptionUpsert(
+    subscription: Stripe.Subscription,
+    eventType: string
+) {
+    if (subscription.status !== "active" || !subscription.latest_invoice) {
+        console.log(`Skipping subscription ${subscription.id} - Status: ${subscription.status}`);
+        return;
+    }
+
+    const stripeCustomerId =
+        subscription.customer as string;
+
+    const user = await convex.query(
+        api.users.getUserByStripeCustomerId,
+        {
+            stripeCustomerId,
+        }
+    );
+
+    if (!user) {
+        throw new Error(
+            `User not found for stripe customer id: ${stripeCustomerId}`
+        );
+    }
+
+    const item = subscription.items.data[0];
+
+    const planType =
+        item.price.recurring?.interval === "year"
+            ? "year"
+            : "month";
+
+    try {
+        await convex.mutation(
+            api.subscriptions.upsertSubscription,
+            {
+                userId: user._id,
+
+                stripeSubscriptionId:
+                    subscription.id,
+
+                status:
+                    subscription.status,
+
+                planType,
+
+                currentPeriodStart:
+                    item.current_period_start *
+                    1000,
+
+                currentPeriodEnd:
+                    item.current_period_end *
+                    1000,
+
+                cancelAtPeriodEnd:
+                    subscription.cancel_at_period_end,
+            }
+        );
+
+        console.log(
+            `Successfully processed ${eventType} for subscription ${subscription.id}`
+        );
+    } catch (error) {
+        console.error(
+            `Failed processing ${eventType}`,
+            error
+        );
+        throw error;
     }
 }

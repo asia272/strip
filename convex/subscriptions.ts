@@ -61,3 +61,43 @@ export const upsertSubscription = mutation({
         return subscriptionId;
     },
 });
+
+
+export const deleteSubscription = mutation({
+    args: {
+        userId: v.id("users"),
+    },
+    handler: async (ctx, args) => {
+        // 1. Get subscription via userId index
+        const subscription = await ctx.db
+            .query("subscriptions")
+            .withIndex("by_userId", (q) =>
+                q.eq("userId", args.userId)
+            )
+            .unique();
+
+        if (!subscription) {
+            console.log("No subscription found for user");
+            return;
+        }
+
+        // 2. Delete subscription
+        await ctx.db.delete(subscription._id);
+
+        // 3. Clear user reference safely
+        const user = await ctx.db.get(args.userId);
+
+        if (user?.currentSubscriptionId === subscription._id) {
+            await ctx.db.patch(args.userId, {
+                currentSubscriptionId: undefined,
+            });
+        }
+
+        console.log("Subscription deleted successfully + user downgraded");
+
+        return {
+            success: true,
+            deletedSubscriptionId: subscription._id,
+        };
+    },
+});

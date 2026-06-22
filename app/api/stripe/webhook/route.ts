@@ -45,6 +45,11 @@ export async function POST(req: Request) {
         case "customer.subscription.updated":
             await handleSubscriptionUpsert(event.data.object as Stripe.Subscription, event.type);
             break;
+        case "customer.subscription.deleted":
+            await handleSubscriptionDeleted(
+                event.data.object as Stripe.Subscription
+            );
+            break;
         default:
             console.log(`Unhandled event type: ${event.type}`);
             break;
@@ -153,6 +158,41 @@ async function handleSubscriptionUpsert(
             `Failed processing ${eventType}`,
             error
         );
+        throw error;
+    }
+}
+async function handleSubscriptionDeleted(
+    subscription: Stripe.Subscription
+) {
+    const stripeCustomerId = subscription.customer as string;
+
+    // 1. Find user in DB
+    const user = await convex.query(
+        api.users.getUserByStripeCustomerId,
+        {
+            stripeCustomerId,
+        }
+    );
+
+    if (!user) {
+        console.log("User not found for deleted subscription");
+        return;
+    }
+
+    try {
+        // 2. Remove subscription from DB OR mark as inactive
+        await convex.mutation(
+            api.subscriptions.deleteSubscription, // 👈 you will create this
+            {
+                userId: user._id,
+            }
+        );
+
+        console.log(
+            "Subscription deleted and user downgraded successfully"
+        );
+    } catch (error) {
+        console.error("Failed to delete subscription:", error);
         throw error;
     }
 }

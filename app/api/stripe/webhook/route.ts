@@ -46,9 +46,7 @@ export async function POST(req: Request) {
             await handleSubscriptionUpsert(event.data.object as Stripe.Subscription, event.type);
             break;
         case "customer.subscription.deleted":
-            await handleSubscriptionDeleted(
-                event.data.object as Stripe.Subscription
-            );
+            await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
             break;
         default:
             console.log(`Unhandled event type: ${event.type}`);
@@ -91,64 +89,51 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         console.error(" Convex insert failed:", err);
     }
 }
-async function handleSubscriptionUpsert(
-    subscription: Stripe.Subscription,
-    eventType: string
-) {
-    if (subscription.status !== "active" || !subscription.latest_invoice) {
-        console.log(`Skipping subscription ${subscription.id} - Status: ${subscription.status}`);
-        return;
-    }
+async function handleSubscriptionUpsert(subscription: Stripe.Subscription, eventType: string) {
 
-    const stripeCustomerId =
-        subscription.customer as string;
+    if (!subscription.id) return;
 
+    const stripeCustomerId = subscription.customer as string;
+
+    console.log(
+        JSON.stringify(subscription, null, 2)
+    );
     const user = await convex.query(
         api.users.getUserByStripeCustomerId,
         {
             stripeCustomerId,
         }
     );
-
     if (!user) {
         throw new Error(
             `User not found for stripe customer id: ${stripeCustomerId}`
         );
     }
-
-    const item = subscription.items.data[0];
-
-    const planType =
-        item.price.recurring?.interval === "year"
-            ? "year"
-            : "month";
-
     try {
-        await convex.mutation(
-            api.subscriptions.upsertSubscription,
-            {
-                userId: user._id,
+        const item = subscription.items.data[0];
 
-                stripeSubscriptionId:
-                    subscription.id,
+        const currentPeriodStart = (item as any).current_period_start;
 
-                status:
-                    subscription.status,
+        const currentPeriodEnd = (item as any).current_period_end;
 
-                planType,
+        if (!currentPeriodStart || !currentPeriodEnd) {
+            console.log("Missing period timestamps, skipping subscription write");
+            return;
+        }
+        await convex.mutation(api.subscriptions.upsertSubscription, {
+            userId: user._id,
+            stripeSubscriptionId: subscription.id,
+            status: subscription.status,
 
-                currentPeriodStart:
-                    item.current_period_start *
-                    1000,
+            planType: item.price.recurring?.interval === "year" ? "year" : "month",
+            currentPeriodStart,
+            currentPeriodEnd,
 
-                currentPeriodEnd:
-                    item.current_period_end *
-                    1000,
+            cancelAtPeriodEnd:
+                subscription.cancel_at !== null &&
+                subscription.status === "active"
+        });
 
-                cancelAtPeriodEnd:
-                    subscription.cancel_at_period_end,
-            }
-        );
 
         console.log(
             `Successfully processed ${eventType} for subscription ${subscription.id}`
@@ -161,38 +146,15 @@ async function handleSubscriptionUpsert(
         throw error;
     }
 }
-async function handleSubscriptionDeleted(
-    subscription: Stripe.Subscription
-) {
-    const stripeCustomerId = subscription.customer as string;
 
-    // 1. Find user in DB
-    const user = await convex.query(
-        api.users.getUserByStripeCustomerId,
-        {
-            stripeCustomerId,
-        }
-    );
 
-    if (!user) {
-        console.log("User not found for deleted subscription");
-        return;
-    }
-
+async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     try {
-        // 2. Remove subscription from DB OR mark as inactive
-        await convex.mutation(
-            api.subscriptions.deleteSubscription, // 👈 you will create this
-            {
-                userId: user._id,
-            }
-        );
-
-        console.log(
-            "Subscription deleted and user downgraded successfully"
-        );
+        await convex.mutation(api.subscriptions.deleteSubscription, {
+            stripeSubscriptionId: subscription.id,
+        });
+        console.log(`Successfully deleted subscription ${subscription.id}`);
     } catch (error) {
-        console.error("Failed to delete subscription:", error);
-        throw error;
+        console.error(`Error deleting subscription ${subscription.id}:`, error);
     }
 }

@@ -63,37 +63,39 @@ export const upsertSubscription = mutation({
 });
 
 
+
 export const deleteSubscription = mutation({
     args: {
-        userId: v.id("users"),
+        stripeSubscriptionId: v.string(),
     },
+
     handler: async (ctx, args) => {
-        // 1. Get subscription via userId index
+        // 1. Find subscription using Stripe ID (your ONLY index)
         const subscription = await ctx.db
             .query("subscriptions")
-            .withIndex("by_userId", (q) =>
-                q.eq("userId", args.userId)
+            .withIndex("by_stripeSubscriptionId", (q) =>
+                q.eq("stripeSubscriptionId", args.stripeSubscriptionId)
             )
             .unique();
 
         if (!subscription) {
-            console.log("No subscription found for user");
+            console.log("Subscription not found");
             return;
         }
 
         // 2. Delete subscription
         await ctx.db.delete(subscription._id);
 
-        // 3. Clear user reference safely
-        const user = await ctx.db.get(args.userId);
+        // 3. Find user linked to this subscription
+        const user = await ctx.db.get(subscription.userId);
 
-        if (user?.currentSubscriptionId === subscription._id) {
-            await ctx.db.patch(args.userId, {
+        if (user) {
+            await ctx.db.patch(user._id, {
                 currentSubscriptionId: undefined,
             });
         }
 
-        console.log("Subscription deleted successfully + user downgraded");
+        console.log("Subscription deleted + user downgraded");
 
         return {
             success: true,
